@@ -1,8 +1,6 @@
 package com.happycamp.snapsearch;
 
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
@@ -10,15 +8,11 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
-import android.os.Parcelable;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.webkit.ConsoleMessage;
-import android.webkit.JsPromptResult;
-import android.webkit.JsResult;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
@@ -27,10 +21,15 @@ import android.webkit.WebViewClient;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
 import java.util.Date;
 
 
@@ -111,7 +110,6 @@ public class MainActivity extends Activity {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 overridingUrlLoadForSearchResult = true;
-
                 Log.d("URL", "URL is " + url);
                 view.loadUrl(url);
                 return true;
@@ -121,6 +119,26 @@ public class MainActivity extends Activity {
             public void onPageFinished(WebView view, String url) {
                 if(overridingUrlLoadForSearchResult) {
                     overridingUrlLoadForSearchResult = false;
+                    try {
+                        //TODO need to fix this process so we can pull individual image results/responses from the url load.
+                        Document document = Jsoup.parse(new URL(url), 5000);
+                        Elements images =  document.select("img");
+                        String imageSrc[] = new String[images.size()];
+                        boolean noNullUrls = true;
+                        for(int i = 0; i < images.size(); i++){
+                            String src = images.get(i).absUrl("src");
+                            String attrSrc = images.get(i).attr("abs:src");
+                            imageSrc[i] = (src != null && !src.equals(""))? src: (attrSrc != null && !attrSrc.equals(""))? attrSrc: null;
+                            if(imageSrc[i] == null)
+                                noNullUrls = false;
+                        }
+
+                        if(noNullUrls)
+                            Toast.makeText(MainActivity.this, "Need to make adapter for " + imageSrc.length + " images", Toast.LENGTH_SHORT).show();
+
+                    } catch(Exception e){
+                        e.printStackTrace();
+                    }
                     return;
                 }
 
@@ -170,9 +188,8 @@ public class MainActivity extends Activity {
         return new WebChromeClient() {
             // onShowFileChooser for Android 5.0+
             public boolean onShowFileChooser(WebView mWebView, ValueCallback<Uri[]> filePathCallback, WebChromeClient.FileChooserParams fileChooserParams) {
-                if (filePathCallback != null) {
+                if (filePathCallback != null)
                     mFilePathCallback = filePathCallback;
-                }
 
                 openImageChooserIntent();
                 return true;
@@ -315,46 +332,32 @@ public class MainActivity extends Activity {
 
         if(requestCode == CAMERA_RESULTCODE || requestCode==FILECHOOSER_RESULTCODE)
         {
-            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP){
-                Uri[] results = new Uri[1];
+            Uri result;
+            try {
+                if (resultCode != RESULT_OK) {
+                    result = null;
+                } else {
+                    // retrieve from the private variable if the intent is null
+                    result = intent == null ? mCapturedImageUri : intent.getData();
+                    findViewById(R.id.input_fields).setVisibility(View.GONE);
+                    mWebView.setVisibility(View.VISIBLE);
+                }
 
-                try {
-                    if (resultCode != RESULT_OK) {
-                        results = null;
-                    } else {
-                        // retrieve from the private variable if the intent is null
-                        results[0] = intent == null ? mCapturedImageUri : intent.getData();
-                        findViewById(R.id.input_fields).setVisibility(View.GONE);
-                        mWebView.setVisibility(View.VISIBLE);
-                    }
-
+                if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    Uri[] results = result == null? null: new Uri[1];
+                    if(results != null)
+                        results[0] = result;
                     mFilePathCallback.onReceiveValue(results);
                     mFilePathCallback = null;
-                    //searchByImage(mWebView);
-
-                } catch (Exception e) {
-                    e.printStackTrace();
                 }
-            }
-            else {
-                Uri result;
-                try {
-                    if (resultCode != RESULT_OK) {
-                        result = null;
-                    } else {
-                        // retrieve from the private variable if the intent is null
-                        result = intent == null ? mCapturedImageUri : intent.getData();
-                        findViewById(R.id.input_fields).setVisibility(View.GONE);
-                        mWebView.setVisibility(View.VISIBLE);
-                    }
-
+                else {
                     this.mUploadMessage.onReceiveValue(result);
                     this.mUploadMessage = null;
-                    searchByImage(mWebView);
-
-                } catch (Exception e) {
-                    e.printStackTrace();
                 }
+                //searchByImage(mWebView);
+
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
     }
