@@ -22,9 +22,6 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".SnapSearchResultActivity"
-            android:label="@string/app_name" />
     </application>
 
 </manifest>

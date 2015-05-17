@@ -1,23 +1,22 @@
 package com.happycamp.snapsearch;
 
 import android.app.Activity;
+import android.app.FragmentManager;
+import android.app.FragmentTransaction;
 import android.content.Intent;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.Handler;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.webkit.ValueCallback;
-import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
-import android.webkit.WebView;
-import android.widget.EditText;
 import android.widget.Toast;
+
+import com.happycamp.snapsearch.custom_views.web_view.SnapSearchWebView;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,20 +25,16 @@ import java.util.Date;
 
 
 public class SnapSearchActivity extends Activity {
-    private static final boolean CACHE_WEB_VIEW = false;
 
     private final String TAG = SnapSearchActivity.class.getSimpleName();
     private final static int CAMERA_RESULTCODE=1;
     private final static int FILECHOOSER_RESULTCODE=2;
 
-    private View mInputFields;
-    private View mLoadingBar;
-    private WebView mWebView;
-    private WebSettings mWebSettings;
+    private View mWrapperSearch, mLoadingBar;
+    private SnapSearchWebView mWebView;
     private ValueCallback<Uri[]> mFilePathCallback;     // for lollipop +
     private ValueCallback<Uri> mUploadMessage;          // for pre-lollipop
-    private String mCameraPhotoPath;
-    private Uri mCapturedImageUri = null;
+    private Uri mCapturedImageUri;
     private boolean performingLoad = false;
     private boolean initialLoad = true;
 
@@ -48,37 +43,16 @@ public class SnapSearchActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mInputFields = findViewById(R.id.input_fields);
         mLoadingBar = findViewById(R.id.loading_bar);
-        mWebView = (WebView) findViewById(R.id.my_web_view);
-        mWebSettings = mWebView.getSettings();
-
-        if (CACHE_WEB_VIEW && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT)
-            mWebSettings.setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
-
-        mWebSettings.setUserAgentString("Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36");
-        mWebSettings.setJavaScriptEnabled(true);
-        mWebSettings.setJavaScriptCanOpenWindowsAutomatically(true);
-        mWebSettings.setLoadWithOverviewMode(true);
-        mWebSettings.setUseWideViewPort(true);
-
-        mWebView.loadUrl("https://www.google.com/imghp?client=android-google&hl=en&tab=wi&ei=7V6gVI-LDI3mggS0oIHADA&ved=0CAQQqi4oAg");
-
-        /* WEB VIEW CLIENT */
-        mWebView.setWebViewClient(new SnapSearchWebViewClient(this));
-
-        /* WEB CHROME CLIENT */
-        // You can create external class extends with WebChromeClient
-        // Taking WebViewClient as inner class
-        // we will define openFileChooser for select file from camera or sdcard
-        mWebView.setWebChromeClient(new SnapSearchWebChromeClient(this));
+        mWrapperSearch = findViewById(R.id.wrapper_search);
+        mWebView = (SnapSearchWebView) findViewById(R.id.my_web_view);
 
         /* SEARCH VIA URL */
         findViewById(R.id.search).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(!performingLoad)
-                    searchByUrl(mWebView);
+                if (!performingLoad)
+                    mWebView.searchByUrl();
             }
         });
 
@@ -86,11 +60,10 @@ public class SnapSearchActivity extends Activity {
         findViewById(R.id.image).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(!performingLoad)
-                    searchByImage(mWebView);
+                if (!performingLoad)
+                    mWebView.searchByImage();
             }
         });
-
     }
 
     /**
@@ -104,19 +77,22 @@ public class SnapSearchActivity extends Activity {
             hideLoadingBar();
     }
 
-    private void showWebView(){
-        final boolean WANT_TO_SHOW_WEB_VIEW = false;
-        if(WANT_TO_SHOW_WEB_VIEW) {
-            mInputFields.setVisibility(View.GONE);
-            mWebView.setVisibility(View.VISIBLE);
-        }
+    @Override
+    public void onBackPressed(){
+        if(mWebView.getVisibility() == View.VISIBLE)
+            hideWebView();
+        else
+            super.onBackPressed();
+    }
+
+    public void showWebView(){
+        mWrapperSearch.setVisibility(View.GONE);
+        mWebView.setVisibility(View.VISIBLE);
     }
 
     private void hideWebView(){
-        if(mWebView.getVisibility() == View.VISIBLE){
-            mInputFields.setVisibility(View.VISIBLE);
-            mWebView.setVisibility(View.GONE);
-        }
+        mWrapperSearch.setVisibility(View.VISIBLE);
+        mWebView.setVisibility(View.GONE);
     }
 
     public void showLoadingBar(){
@@ -129,48 +105,6 @@ public class SnapSearchActivity extends Activity {
         performingLoad = false;
     }
 
-    /**
-     * When we click the button to search by URL, this method will call the appropriate sequence of javascript (that I manually pulled out of Google's search page) to
-     * allow us to perform a search-by-image via Google for the corresponding URL.
-     *
-     * @param mWebView
-     */
-    private void searchByUrl(WebView mWebView){
-
-        mWebView.loadUrl("javascript:(function(){l=document.getElementById('qbug');l.style.display = 'block';})()");
-        mWebView.loadUrl("javascript:(function(){l=document.getElementById('qbig');l.style.display = 'none';})()");
-
-        String imageUrl = ((EditText) findViewById(R.id.edit_text_image_url)).getEditableText().toString();
-
-        if(!imageUrl.equals("")) {
-            mWebView.loadUrl("javascript:(function(){l=document.getElementById('qbui');l.value = '" + imageUrl + "';})()");
-
-            String id = "qbbtc";
-            mWebView.loadUrl("javascript:(function(){l=document.getElementById('" + id + "');c=l.getElementsByClassName(\"gbqfb kpbb\");e=document.createEvent('HTMLEvents');" +
-                    "e.initEvent('click',true,true);c.item(0).dispatchEvent(e);})()");
-
-            showWebView();
-        }
-        else
-            Toast.makeText(SnapSearchActivity.this, "Need to enter a valid image URL before searching", Toast.LENGTH_SHORT).show();
-    }
-
-    /**
-     * When we click the button to search by image, this method will call the appropriate sequence of javascript (that I manually pulled out of Google's search page) to
-     * allow us to perform a search-by-image via Google. The big thing here is that this requires a file chooser to be triggered within our WebView so we can
-     * determine where that image comes from. That is what the Web
-     *
-     * @param mWebView
-     */
-    private void searchByImage(WebView mWebView){
-
-        mWebView.loadUrl("javascript:(function(){l=document.getElementById('qbug');l.style.display = 'none';})()");
-        mWebView.loadUrl("javascript:(function(){l=document.getElementById('qbig');l.style.display = 'block';})()");
-
-        String id = "qbfile";
-        mWebView.loadUrl("javascript:(function(){l=document.getElementById('" + id + "');e=document.createEvent('HTMLEvents');" +
-                "e.initEvent('click',true,true);l.dispatchEvent(e);})()");
-    }
 
     /**
      * Will create our intent that will provide an Image Chooser - Post Lollipop (5.0)
@@ -205,22 +139,19 @@ public class SnapSearchActivity extends Activity {
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
             // Create the File where the photo should go
-            File photoFile = null;
             try {
-                photoFile = createImageFile();
-                takePictureIntent.putExtra("SnapSearch", mCameraPhotoPath);
+                File photoFile = createImageFile();
+                // Continue only if the File was successfully created
+                if (photoFile != null) {
+                    takePictureIntent.putExtra("SnapSearch",  "file:" + photoFile.getAbsolutePath());
+                    mCapturedImageUri = Uri.fromFile(photoFile);
+                    takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, mCapturedImageUri);
+                } else {
+                    takePictureIntent = null;
+                }
             } catch (IOException ex) {
                 // Error occurred while creating the File
                 Log.e(TAG, "Unable to create Image File", ex);
-            }
-
-            // Continue only if the File was successfully created
-            if (photoFile != null) {
-                mCameraPhotoPath = "file:" + photoFile.getAbsolutePath();
-                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT,
-                        Uri.fromFile(photoFile));
-            } else {
-                takePictureIntent = null;
             }
         }
 
@@ -230,17 +161,16 @@ public class SnapSearchActivity extends Activity {
         contentSelectionIntent.setType("image/*");
 
         // Set up the intents for the Intent chooser
-        Intent[] intentArray;
+        Intent[] intentArray = null;
         if(takePictureIntent != null) {
             intentArray = new Intent[]{takePictureIntent};
-        } else {
-            intentArray = new Intent[0];
         }
 
         Intent chooserIntent = new Intent(Intent.ACTION_CHOOSER);
         chooserIntent.putExtra(Intent.EXTRA_INTENT, contentSelectionIntent);
         chooserIntent.putExtra(Intent.EXTRA_TITLE, "Image Chooser");
-        chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, intentArray);
+        if(intentArray != null)
+            chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, intentArray);
 
         startActivityForResult(chooserIntent, FILECHOOSER_RESULTCODE);
     }
@@ -281,25 +211,26 @@ public class SnapSearchActivity extends Activity {
         {
             Uri result;
             try {
-                if (resultCode != RESULT_OK) {
-                    result = null;
-                } else {
-                    // retrieve from the private variable if the intent is null
-                    result = intent == null ? mCapturedImageUri : intent.getData();
-                    showWebView();
+                if (resultCode != RESULT_OK || ((intent == null || intent.getData() == null) && mCapturedImageUri == null)) {
+                    hideLoadingBar();
+                    return;
                 }
 
-                if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                result = (intent != null && intent.getData() != null)? (Uri) intent.getExtras().get("SnapSearch"): mCapturedImageUri;
+
+                if(mFilePathCallback != null) {
                     Uri[] results = result == null? null: new Uri[1];
                     if(results != null)
                         results[0] = result;
                     mFilePathCallback.onReceiveValue(results);
                     mFilePathCallback = null;
                 }
-                else {
+                else if(mUploadMessage != null) {
                     this.mUploadMessage.onReceiveValue(result);
                     this.mUploadMessage = null;
                 }
+                else
+                    showSearchResults(null);
                 //searchByImage(mWebView);
 
             } catch (Exception e) {
@@ -317,10 +248,13 @@ public class SnapSearchActivity extends Activity {
         if(searchResultImageUrls == null)
             Toast.makeText(this, "Unable to match your search results, please try again.", Toast.LENGTH_LONG).show();
         else{
-
-            Intent searchResults = new Intent(this, SnapSearchResultActivity.class);
-            searchResults.putExtra(SnapSearchResultActivity.SEARCH_RESULT_IMAGE_URLS_KEY, searchResultImageUrls);
-            startActivity(searchResults);
+            FragmentManager fragmentManager = getFragmentManager();
+            FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
+            if(fragmentTransaction.isEmpty())
+                fragmentTransaction.add(R.id.frame_search_results, SnapSearchResultFragment.newInstance(searchResultImageUrls), "Search Results");
+            else
+                fragmentTransaction.replace(R.id.frame_search_results, SnapSearchResultFragment.newInstance(searchResultImageUrls), "Search Results");
+            fragmentTransaction.commit();
         }
 
         hideLoadingBar();

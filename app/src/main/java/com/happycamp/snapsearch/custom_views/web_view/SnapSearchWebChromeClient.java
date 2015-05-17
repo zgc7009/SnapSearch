@@ -1,10 +1,12 @@
-package com.happycamp.snapsearch;
+package com.happycamp.snapsearch.custom_views.web_view;
 
 import android.app.Activity;
 import android.net.Uri;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
+
+import com.happycamp.snapsearch.SnapSearchActivity;
 
 /**
  * Created by Zach on 5/16/2015.

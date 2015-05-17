@@ -1,4 +1,4 @@
-package com.happycamp.snapsearch;
+package com.happycamp.snapsearch.custom_views.web_view;
 
 import android.app.Activity;
 import android.os.AsyncTask;
@@ -8,6 +8,8 @@ import android.util.Log;
 import android.view.View;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+
+import com.happycamp.snapsearch.SnapSearchActivity;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;

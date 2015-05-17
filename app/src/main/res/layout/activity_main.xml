@@ -6,42 +6,60 @@
     android:paddingBottom="@dimen/activity_vertical_margin" tools:context=".MainActivity">
 
     <LinearLayout
-        android:id="@+id/input_fields"
+        android:id="@+id/wrapper_search"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
-        android:orientation="vertical" >
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:animateLayoutChanges="true">
 
-        <EditText
-            android:id="@+id/edit_text_image_url"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-
-        <Button
-            android:id="@+id/search"
-            android:text="Search by URL"
+        <LinearLayout
+            android:id="@+id/input_fields"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="10dp" />
+            android:paddingTop="@dimen/activity_vertical_margin"
+            android:paddingBottom="@dimen/activity_vertical_margin"
+            android:gravity="center"
+            android:orientation="vertical" >
 
-        <Button
-            android:id="@+id/image"
-            android:text="Search by Image"
+            <EditText
+                android:id="@+id/edit_text_image_url"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <Button
+                android:id="@+id/search"
+                android:text="Search by URL"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp" />
+
+            <Button
+                android:id="@+id/image"
+                android:text="Search by Image"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+        </LinearLayout>
+
+        <FrameLayout
+            android:id="@+id/frame_search_results"
+            android:orientation="vertical"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_below="@id/input_fields"
+            android:animateLayoutChanges="true"/>
     </LinearLayout>
 
-    <WebView
+    <com.happycamp.snapsearch.custom_views.web_view.SnapSearchWebView
         android:id="@+id/my_web_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_above="@id/input_fields"
         android:paddingLeft="@dimen/activity_horizontal_margin"
         android:paddingRight="@dimen/activity_horizontal_margin"
         android:paddingTop="@dimen/activity_vertical_margin"
         android:paddingBottom="@dimen/activity_vertical_margin"
-        android:visibility="invisible" />
+        android:visibility="gone" />
 
     <ProgressBar
         android:id="@+id/loading_bar"
