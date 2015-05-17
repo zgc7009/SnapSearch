@@ -12,11 +12,17 @@
         android:layout_height="match_parent"
         android:layout_above="@+id/button_footer"/>
 
-    <Button
+    <com.happycamp.snapsearch.custom_views.color_button.ColorButton
+        xmlns:custom="http://schemas.android.com/apk/res-auto"
         android:id="@id/button_footer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         android:padding="5dp"
-        android:text="Show Full Results" />
+        android:text="Show Full Results"
+        android:textColor="@android:color/white"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        custom:unclickColor="@color/light_blue"
+        custom:clickColor="@color/gray" />
 </RelativeLayout>

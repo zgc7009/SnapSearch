@@ -13,7 +13,6 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.webkit.ValueCallback;
-import android.webkit.WebSettings;
 import android.widget.Toast;
 
 import com.happycamp.snapsearch.custom_views.web_view.SnapSearchWebView;

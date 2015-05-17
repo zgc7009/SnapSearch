@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <declare-styleable name="ColorButton">
+        <attr name="unclickColor" format="color" />
+        <attr name="clickColor" format="color"/>
+    </declare-styleable>
+
+    <declare-styleable name="CustomEditText">
+        <attr name="backgroundColor" format="color" />
+        <attr name="underlineColor" format="color" />
+    </declare-styleable>
+</resources>

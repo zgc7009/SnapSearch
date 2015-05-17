@@ -13,6 +13,7 @@
         android:animateLayoutChanges="true">
 
         <LinearLayout
+            xmlns:custom="http://schemas.android.com/apk/res-auto"
             android:id="@+id/input_fields"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -21,23 +22,36 @@
             android:gravity="center"
             android:orientation="vertical" >
 
-            <EditText
+            <com.happycamp.snapsearch.custom_views.edit_text.CustomEditText
                 android:id="@+id/edit_text_image_url"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:background="@drawable/rounded_button"
+                custom:backgroundColor="@android:color/white" />
 
-            <Button
+            <com.happycamp.snapsearch.custom_views.color_button.ColorButton
                 android:id="@+id/search"
                 android:text="Search by URL"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="10dp" />
+                android:layout_marginBottom="10dp"
+                android:textColor="@android:color/white"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                custom:unclickColor="@color/light_blue"
+                custom:clickColor="@color/gray"/>
 
-            <Button
+            <com.happycamp.snapsearch.custom_views.color_button.ColorButton
                 android:id="@+id/image"
                 android:text="Search by Image"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:textColor="@android:color/white"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                custom:unclickColor="@color/light_blue"
+                custom:clickColor="@color/gray" />
 
         </LinearLayout>
 

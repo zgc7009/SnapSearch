@@ -5,4 +5,8 @@
         <!-- Customize your theme here. -->
     </style>
 
+    <style name="EditTextCustomHolo" parent="android:Widget.EditText">
+        <item name="android:background">@drawable/rounded_button</item>
+    </style>
+
 </resources>
