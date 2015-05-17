@@ -1,5 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/image_search_result"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/list_search_results"
+    android:orientation="horizontal"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content" />
+    android:layout_height="wrap_content"
+    android:background="@android:color/black" >
+
+    <ImageView xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/image_search_result"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:minHeight="80dp"
+        android:scaleType="centerInside"
+        android:padding="@dimen/activity_vertical_margin"/>
+
+</LinearLayout>

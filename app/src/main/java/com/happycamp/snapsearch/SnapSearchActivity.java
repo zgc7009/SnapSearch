@@ -6,6 +6,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.Menu;
@@ -25,38 +26,44 @@ import java.util.Date;
 
 
 public class SnapSearchActivity extends Activity {
+    private static final boolean CACHE_WEB_VIEW = false;
 
     private final String TAG = SnapSearchActivity.class.getSimpleName();
     private final static int CAMERA_RESULTCODE=1;
     private final static int FILECHOOSER_RESULTCODE=2;
 
-
+    private View mInputFields;
+    private View mLoadingBar;
     private WebView mWebView;
+    private WebSettings mWebSettings;
     private ValueCallback<Uri[]> mFilePathCallback;     // for lollipop +
     private ValueCallback<Uri> mUploadMessage;          // for pre-lollipop
     private String mCameraPhotoPath;
     private Uri mCapturedImageUri = null;
+    private boolean performingLoad = false;
+    private boolean initialLoad = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        mInputFields = findViewById(R.id.input_fields);
+        mLoadingBar = findViewById(R.id.loading_bar);
         mWebView = (WebView) findViewById(R.id.my_web_view);
-        final WebSettings webSettings = mWebView.getSettings();
+        mWebSettings = mWebView.getSettings();
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            webSettings.setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
-        }
+        if (CACHE_WEB_VIEW && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT)
+            mWebSettings.setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
 
-        webSettings.setUserAgentString("Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36");
-        webSettings.setJavaScriptEnabled(true);
-        webSettings.setJavaScriptCanOpenWindowsAutomatically(true);
-        webSettings.setLoadWithOverviewMode(true);
-        webSettings.setUseWideViewPort(true);
+        mWebSettings.setUserAgentString("Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36");
+        mWebSettings.setJavaScriptEnabled(true);
+        mWebSettings.setJavaScriptCanOpenWindowsAutomatically(true);
+        mWebSettings.setLoadWithOverviewMode(true);
+        mWebSettings.setUseWideViewPort(true);
 
         mWebView.loadUrl("https://www.google.com/imghp?client=android-google&hl=en&tab=wi&ei=7V6gVI-LDI3mggS0oIHADA&ved=0CAQQqi4oAg");
-        
+
         /* WEB VIEW CLIENT */
         mWebView.setWebViewClient(new SnapSearchWebViewClient(this));
 
@@ -70,7 +77,8 @@ public class SnapSearchActivity extends Activity {
         findViewById(R.id.search).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                searchByUrl(mWebView);
+                if(!performingLoad)
+                    searchByUrl(mWebView);
             }
         });
 
@@ -78,10 +86,47 @@ public class SnapSearchActivity extends Activity {
         findViewById(R.id.image).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                searchByImage(mWebView);
+                if(!performingLoad)
+                    searchByImage(mWebView);
             }
         });
 
+    }
+
+    /**
+     * Without this we were having buggy issues having the app perform more than once
+     */
+    @Override
+    public void onResume(){
+        super.onResume();
+        mWebView.clearCache(true);
+        if(!initialLoad)
+            hideLoadingBar();
+    }
+
+    private void showWebView(){
+        final boolean WANT_TO_SHOW_WEB_VIEW = false;
+        if(WANT_TO_SHOW_WEB_VIEW) {
+            mInputFields.setVisibility(View.GONE);
+            mWebView.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void hideWebView(){
+        if(mWebView.getVisibility() == View.VISIBLE){
+            mInputFields.setVisibility(View.VISIBLE);
+            mWebView.setVisibility(View.GONE);
+        }
+    }
+
+    public void showLoadingBar(){
+        mLoadingBar.setVisibility(View.VISIBLE);
+        performingLoad = true;
+    }
+
+    public void hideLoadingBar(){
+        mLoadingBar.setVisibility(View.GONE);
+        performingLoad = false;
     }
 
     /**
@@ -91,6 +136,7 @@ public class SnapSearchActivity extends Activity {
      * @param mWebView
      */
     private void searchByUrl(WebView mWebView){
+
         mWebView.loadUrl("javascript:(function(){l=document.getElementById('qbug');l.style.display = 'block';})()");
         mWebView.loadUrl("javascript:(function(){l=document.getElementById('qbig');l.style.display = 'none';})()");
 
@@ -103,8 +149,7 @@ public class SnapSearchActivity extends Activity {
             mWebView.loadUrl("javascript:(function(){l=document.getElementById('" + id + "');c=l.getElementsByClassName(\"gbqfb kpbb\");e=document.createEvent('HTMLEvents');" +
                     "e.initEvent('click',true,true);c.item(0).dispatchEvent(e);})()");
 
-            findViewById(R.id.input_fields).setVisibility(View.GONE);
-            mWebView.setVisibility(View.VISIBLE);
+            showWebView();
         }
         else
             Toast.makeText(SnapSearchActivity.this, "Need to enter a valid image URL before searching", Toast.LENGTH_SHORT).show();
@@ -118,6 +163,7 @@ public class SnapSearchActivity extends Activity {
      * @param mWebView
      */
     private void searchByImage(WebView mWebView){
+
         mWebView.loadUrl("javascript:(function(){l=document.getElementById('qbug');l.style.display = 'none';})()");
         mWebView.loadUrl("javascript:(function(){l=document.getElementById('qbig');l.style.display = 'block';})()");
 
@@ -126,11 +172,21 @@ public class SnapSearchActivity extends Activity {
                 "e.initEvent('click',true,true);l.dispatchEvent(e);})()");
     }
 
+    /**
+     * Will create our intent that will provide an Image Chooser - Post Lollipop (5.0)
+     * @param filePathCallback
+     */
     public void openImageChooserIntentPostLollipop(ValueCallback<Uri[]> filePathCallback){
         mFilePathCallback = filePathCallback;
         openImageChooserIntent(filePathCallback);
     }
 
+    /**
+     * Will create our intent that will provide an Image Chooser - Pre Lollipop (5.0)
+     * NOTE: Not working for KitKat (4.3). Apparently a Cordova Plugin will fix this?
+     *
+     * @param uploadMessage
+     */
     public void openImageChooserIntentPreLollipop(ValueCallback<Uri> uploadMessage){
         mUploadMessage = uploadMessage;
         openImageChooserIntent(uploadMessage);
@@ -142,6 +198,8 @@ public class SnapSearchActivity extends Activity {
     private <T> void openImageChooserIntent(ValueCallback<T> filePathCallback){
         if(filePathCallback == null)
             return;
+
+        showLoadingBar();
 
         // Set up the take picture intent
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
@@ -209,7 +267,13 @@ public class SnapSearchActivity extends Activity {
     }
 
 
-    // Return here when file selected from camera or from SDcard
+    /**
+     * Return here when file selected from camera or from SDcard
+     *
+     * @param requestCode
+     * @param resultCode
+     * @param intent
+     */
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
 
@@ -222,8 +286,7 @@ public class SnapSearchActivity extends Activity {
                 } else {
                     // retrieve from the private variable if the intent is null
                     result = intent == null ? mCapturedImageUri : intent.getData();
-                    findViewById(R.id.input_fields).setVisibility(View.GONE);
-                    mWebView.setVisibility(View.VISIBLE);
+                    showWebView();
                 }
 
                 if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -245,18 +308,22 @@ public class SnapSearchActivity extends Activity {
         }
     }
 
+    /**
+     * Called from our SnapSearchWebViewClient once it is done parsing
+     *
+     * @param searchResultImageUrls
+     */
     public void showSearchResults(String[] searchResultImageUrls){
-        if(searchResultImageUrls == null) {
+        if(searchResultImageUrls == null)
             Toast.makeText(this, "Unable to match your search results, please try again.", Toast.LENGTH_LONG).show();
-            startActivity(new Intent(this, SnapSearchActivity.class));
-        }
         else{
+
             Intent searchResults = new Intent(this, SnapSearchResultActivity.class);
             searchResults.putExtra(SnapSearchResultActivity.SEARCH_RESULT_IMAGE_URLS_KEY, searchResultImageUrls);
             startActivity(searchResults);
         }
 
-        finish();
+        hideLoadingBar();
     }
 
     @Override

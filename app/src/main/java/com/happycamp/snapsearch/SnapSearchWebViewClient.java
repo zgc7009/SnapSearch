@@ -45,7 +45,7 @@ public class SnapSearchWebViewClient extends WebViewClient {
 
         view.loadUrl("javascript:(function(){document.getElementById('qbi').click();})()");
 
-        mActivity.findViewById(R.id.loading_bar).setVisibility(View.GONE);
+        mActivity.hideLoadingBar();
     }
 
 
