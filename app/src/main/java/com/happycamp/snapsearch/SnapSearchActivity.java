@@ -210,12 +210,13 @@ public class SnapSearchActivity extends Activity {
         {
             Uri result;
             try {
-                if (resultCode != RESULT_OK || ((intent == null || intent.getData() == null) && mCapturedImageUri == null)) {
+                if (resultCode != RESULT_OK ||
+                        (requestCode == CAMERA_RESULTCODE && ((intent == null || intent.getData() == null) && mCapturedImageUri == null))) {
                     hideLoadingBar();
                     return;
                 }
 
-                result = (intent != null && intent.getData() != null)? (Uri) intent.getExtras().get("SnapSearch"): mCapturedImageUri;
+                result = (intent != null && intent.getData() != null)? intent.getData(): mCapturedImageUri;
 
                 if(mFilePathCallback != null) {
                     Uri[] results = result == null? null: new Uri[1];
