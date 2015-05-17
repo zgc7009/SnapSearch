@@ -6,8 +6,6 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.Handler;
-import android.os.Message;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.Menu;
@@ -17,28 +15,20 @@ import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
-import android.webkit.WebViewClient;
 import android.widget.EditText;
 import android.widget.Toast;
 
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
-
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
 
-public class MainActivity extends Activity {
+public class SnapSearchActivity extends Activity {
 
-    private final String TAG = MainActivity.class.getSimpleName();
+    private final String TAG = SnapSearchActivity.class.getSimpleName();
     private final static int CAMERA_RESULTCODE=1;
     private final static int FILECHOOSER_RESULTCODE=2;
-    private final static boolean AUTOMATE_PROCESS = false;
 
 
     private WebView mWebView;
@@ -46,8 +36,6 @@ public class MainActivity extends Activity {
     private ValueCallback<Uri> mUploadMessage;          // for pre-lollipop
     private String mCameraPhotoPath;
     private Uri mCapturedImageUri = null;
-    int numRedirects = 0;
-    private Runnable waitForLoad;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,13 +58,13 @@ public class MainActivity extends Activity {
         mWebView.loadUrl("https://www.google.com/imghp?client=android-google&hl=en&tab=wi&ei=7V6gVI-LDI3mggS0oIHADA&ved=0CAQQqi4oAg");
         
         /* WEB VIEW CLIENT */
-        mWebView.setWebViewClient(createWebView());
+        mWebView.setWebViewClient(new SnapSearchWebViewClient(this));
 
         /* WEB CHROME CLIENT */
         // You can create external class extends with WebChromeClient
         // Taking WebViewClient as inner class
         // we will define openFileChooser for select file from camera or sdcard
-        mWebView.setWebChromeClient(createWebChromeClient());
+        mWebView.setWebChromeClient(new SnapSearchWebChromeClient(this));
 
         /* SEARCH VIA URL */
         findViewById(R.id.search).setOnClickListener(new View.OnClickListener() {
@@ -94,123 +82,6 @@ public class MainActivity extends Activity {
             }
         });
 
-    }
-
-    /**
-     * Will provide a web view that will handle the WebView lifecycle calls. This will automate us through to the
-     * search by image page on Google via Google's javascript.
-     *
-     * @return
-     */
-    private WebViewClient createWebView(){
-        return new WebViewClient() {
-
-            private boolean overridingUrlLoadForSearchResult = false;
-
-            @Override
-            public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                overridingUrlLoadForSearchResult = true;
-                Log.d("URL", "URL is " + url);
-                view.loadUrl(url);
-                return true;
-            }
-
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                if(overridingUrlLoadForSearchResult) {
-                    overridingUrlLoadForSearchResult = false;
-                    try {
-                        //TODO need to fix this process so we can pull individual image results/responses from the url load.
-                        Document document = Jsoup.parse(new URL(url), 5000);
-                        Elements images =  document.select("img");
-                        String imageSrc[] = new String[images.size()];
-                        boolean noNullUrls = true;
-                        for(int i = 0; i < images.size(); i++){
-                            String src = images.get(i).absUrl("src");
-                            String attrSrc = images.get(i).attr("abs:src");
-                            imageSrc[i] = (src != null && !src.equals(""))? src: (attrSrc != null && !attrSrc.equals(""))? attrSrc: null;
-                            if(imageSrc[i] == null)
-                                noNullUrls = false;
-                        }
-
-                        if(noNullUrls)
-                            Toast.makeText(MainActivity.this, "Need to make adapter for " + imageSrc.length + " images", Toast.LENGTH_SHORT).show();
-
-                    } catch(Exception e){
-                        e.printStackTrace();
-                    }
-                    return;
-                }
-
-                view.loadUrl("javascript:(function(){document.getElementById('qbi').click();})()");
-                numRedirects++;
-
-                if(AUTOMATE_PROCESS) {
-                    final Handler handler = new Handler() {
-                        @Override
-                        public void handleMessage(Message msg) {
-                            if (numRedirects == 1) {
-                                numRedirects++;
-                                mWebView.loadUrl("javascript:(function(){l=document.getElementById('qbug');l.style.display = 'none'");
-                                mWebView.loadUrl("javascript:(function(){l=document.getElementById('qbig');l.style.display = 'block'");
-                                mWebView.invalidate();
-                                this.postDelayed(waitForLoad, 1000);
-                            } else if (numRedirects == 2) {
-                                numRedirects++;
-                                mWebView.loadUrl("javascript:(function(){l=document.getElementById('qbfile');e=document.createEvent('HTMLEvents');" +
-                                        "e.initEvent('click',true,true);l.dispatchEvent(e);})()");
-                                findViewById(R.id.loading_bar).setVisibility(View.GONE);
-                            }
-                        }
-                    };
-
-                    waitForLoad = new Runnable() {
-                        @Override
-                        public void run() {
-                            handler.sendEmptyMessage(0);
-                        }
-                    };
-                    handler.postDelayed(waitForLoad, 1000);
-                }
-                else
-                    findViewById(R.id.loading_bar).setVisibility(View.GONE);
-            }
-        };
-    }
-
-    /**
-     * Will provide a default client for Chrome, this will tell us what to do when the file chooser is triggered. In our case, it will
-     * trigger the Image Chooser intent. NOTE - This is OS dependent
-     *
-     * @return
-     */
-    private WebChromeClient createWebChromeClient(){
-        return new WebChromeClient() {
-            // onShowFileChooser for Android 5.0+
-            public boolean onShowFileChooser(WebView mWebView, ValueCallback<Uri[]> filePathCallback, WebChromeClient.FileChooserParams fileChooserParams) {
-                if (filePathCallback != null)
-                    mFilePathCallback = filePathCallback;
-
-                openImageChooserIntent();
-                return true;
-            }
-
-            // openFileChooser for Android 3.0+
-            public void openFileChooser(ValueCallback<Uri> uploadMsg, String acceptType) {
-                mUploadMessage = uploadMsg;
-                onShowFileChooser(mWebView, null, null);
-            }
-
-            // openFileChooser for Android < 3.0
-            public void openFileChooser(ValueCallback<Uri> uploadMsg) {
-                openFileChooser(uploadMsg, "");
-            }
-
-            //openFileChooser for other Android versions (not exactly sure what these are though but it covers all my bases)
-            public void openFileChooser(ValueCallback<Uri> uploadMsg, String acceptType, String capture) {
-                openFileChooser(uploadMsg, acceptType);
-            }
-        };
     }
 
     /**
@@ -236,7 +107,7 @@ public class MainActivity extends Activity {
             mWebView.setVisibility(View.VISIBLE);
         }
         else
-            Toast.makeText(MainActivity.this, "Need to enter a valid image URL before searching", Toast.LENGTH_SHORT).show();
+            Toast.makeText(SnapSearchActivity.this, "Need to enter a valid image URL before searching", Toast.LENGTH_SHORT).show();
     }
 
     /**
@@ -255,10 +126,22 @@ public class MainActivity extends Activity {
                 "e.initEvent('click',true,true);l.dispatchEvent(e);})()");
     }
 
+    public void openImageChooserIntentPostLollipop(ValueCallback<Uri[]> filePathCallback){
+        mFilePathCallback = filePathCallback;
+        openImageChooserIntent(filePathCallback);
+    }
+
+    public void openImageChooserIntentPreLollipop(ValueCallback<Uri> uploadMessage){
+        mUploadMessage = uploadMessage;
+        openImageChooserIntent(uploadMessage);
+    }
+
     /**
      * Will create our intent that will provide an Image Chooser.
      */
-    private void openImageChooserIntent(){
+    private <T> void openImageChooserIntent(ValueCallback<T> filePathCallback){
+        if(filePathCallback == null)
+            return;
 
         // Set up the take picture intent
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
@@ -360,6 +243,20 @@ public class MainActivity extends Activity {
                 e.printStackTrace();
             }
         }
+    }
+
+    public void showSearchResults(String[] searchResultImageUrls){
+        if(searchResultImageUrls == null) {
+            Toast.makeText(this, "Unable to match your search results, please try again.", Toast.LENGTH_LONG).show();
+            startActivity(new Intent(this, SnapSearchActivity.class));
+        }
+        else{
+            Intent searchResults = new Intent(this, SnapSearchResultActivity.class);
+            searchResults.putExtra(SnapSearchResultActivity.SEARCH_RESULT_IMAGE_URLS_KEY, searchResultImageUrls);
+            startActivity(searchResults);
+        }
+
+        finish();
     }
 
     @Override
